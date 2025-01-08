@@ -1,1 +1,127 @@
-<!DOCTYPE html><html><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>anwesende</title><link href=/static/css/app.90c2cd283789392d3dcd2d5ffddb48d4.css rel=stylesheet></head><body><div id=app></div><script type=text/javascript src=/static/js/manifest.2ae2e69a05c33dfc65f8.js></script><script type=text/javascript src=/static/js/vendor.cb23fe6b6f68ebd88c70.js></script><script type=text/javascript src=/static/js/app.e5532ae31a42168bed50.js></script></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>弹幕数据导出</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+</head>
+<body>
+    <h1>弹幕数据导出</h1>
+    <form id="dataForm">
+        <label for="uid">UID:</label>
+        <input type="text" id="uid" name="uid" required><br><br>
+
+        <label for="cookie">Cookie:</label>
+        <input type="text" id="cookie" name="cookie" required><br><br>
+
+        <label for="token">Token:</label>
+        <input type="text" id="token" name="token" required><br><br>
+
+        <label for="days">Days:</label>
+        <input type="number" id="days" name="days" required><br><br>
+        <button type="button" onclick="fetchData()">查询数据</button>
+
+    </form>
+
+    <!-- Table to display the results -->
+    <table id="resultsTable" border="1" style="margin-top: 20px; width: 100%;">
+        <thead>
+            <tr>
+                <th>Update Time</th>
+                <th>Anchor Name</th>
+                <th>Text</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Rows will be populated here dynamically -->
+        </tbody>
+    </table>
+
+    <script>
+        async function fetchData() {
+            const uid = document.getElementById('uid').value;
+            const cookie = document.getElementById('cookie').value;
+            const token = document.getElementById('token').value;
+            const days = parseInt(document.getElementById('days').value);
+
+            const today = new Date();
+            let result = [];
+            let name = '';
+
+            // Clear the table before populating new data
+            const tableBody = document.querySelector("#resultsTable tbody");
+            tableBody.innerHTML = "";
+
+            for (let i = 0; i < days; i++) {
+                const targetDay = new Date(today);
+                targetDay.setDate(today.getDate() - i);
+                const date = targetDay.toISOString().split('T')[0];
+
+                for (let j = 0; j < 100; j++) {
+                    try {
+                        const url = `https://bojianger.com/data/api/auth/audience_detail_danmu.do?date=${date}&rid=0&uid=${uid}&order=-1&time=-1&duration=0+~24&pageNum=${j}&pageSize=20`;
+                        const headers = {
+                            "accept": "application/json, text/javascript, */*; q=0.01",
+                            "accept-encoding": "gzip, deflate, br, zstd",
+                            "accept-language": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7,ja;q=0.6",
+                            "connection": "keep-alive",
+                            "content-type": "application/json; charset=utf-8",
+                            "cookie": cookie,
+                            "host": "bojianger.com",
+                            "referer": `https://bojianger.com/audience-detail-danmu.html?uid=${uid}&date=2025-01-08`,
+                            "sec-ch-ua": "\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\"",
+                            "sec-ch-ua-mobile": "?0",
+                            "sec-ch-ua-platform": "\"Windows\"",
+                            "sec-fetch-dest": "empty",
+                            "sec-fetch-mode": "cors",
+                            "sec-fetch-site": "same-origin",
+                            "token": token,
+                            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+                        };
+
+                        const response = await fetch(url, { headers });
+                        const data = await response.json();
+                        const rows = data.data.page.rows;
+
+                        if (name === '') {
+                            name = data.data.name;
+                        }
+
+                        rows.forEach(row => {
+                            result.push({
+                                update_time: row.update_time,
+                                anchorName: row.anchorName,
+                                txt: row.txt
+                            });
+
+                            // Add a new row to the table
+                            const newRow = tableBody.insertRow();
+                            newRow.insertCell().textContent = row.update_time;
+                            newRow.insertCell().textContent = row.anchorName;
+                            newRow.insertCell().textContent = row.txt;
+                        });
+                    } catch (error) {
+                        break;
+                    }
+                }
+            }
+
+            // Sort data by update_time
+            result.sort((a, b) => a.update_time.localeCompare(b.update_time));
+
+            // Generate Excel file
+            // const outputFile = `${name}.xlsx`;
+            // generateExcel(result, outputFile);
+        }
+
+        function generateExcel(data, fileName) {
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Results");
+            XLSX.writeFile(wb, fileName);
+        }
+
+    </script>
+</body>
+</html>
